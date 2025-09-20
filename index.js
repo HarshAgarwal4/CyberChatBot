@@ -24,6 +24,7 @@ app.get("/", (req, res) => {
 });
 
 app.post("/api/chat", async (req, res) => {
+    console.log(process.env.systemInstruction)
     try {
         const { query, history } = req.body;
         console.log(history , query)
