@@ -7,7 +7,6 @@
   <title>Chat with Vakil</title>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    /* General Body */
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: #f0f2f5;
@@ -18,7 +17,6 @@
       margin: 0;
     }
 
-    /* Chat Container */
     .chat-container {
       width: 100%;
       max-width: 600px;
@@ -31,7 +29,6 @@
       background: #fff;
     }
 
-    /* Header */
     .chat-header {
       background: #4CAF50;
       color: #fff;
@@ -41,7 +38,6 @@
       font-weight: bold;
     }
 
-    /* Chat Messages */
     #chat-box {
       flex: 1;
       padding: 15px;
@@ -52,7 +48,6 @@
       background: #fdfdfd;
     }
 
-    /* Chat Bubbles */
     .user,
     .bot {
       max-width: 75%;
@@ -76,7 +71,6 @@
       border-bottom-left-radius: 5px;
     }
 
-    /* Input Area */
     .input-area {
       display: flex;
       border-top: 1px solid #ddd;
@@ -95,7 +89,7 @@
       background: #4CAF50;
       color: #fff;
       border: none;
-      padding: 0 25px;
+      padding: 0 15px;
       cursor: pointer;
       font-size: 15px;
       transition: background 0.3s;
@@ -105,15 +99,30 @@
       background: #45a049;
     }
 
-    /* Code Block Styling (keep as is) */
+    .mic-btn {
+      background: #ff4b5c;
+      margin-left: 5px;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+    }
+
+    .mic-btn.active {
+      background: #4CAF50;
+    }
+
     pre code {
-      background-color: #000;   /* black background */
-      color: #fff;             /* white text */
+      background-color: #000;
+      color: #fff;
       display: block;
       padding: 10px;
       border-radius: 8px;
-      overflow-x: auto;        /* scroll if long */
-      font-family: monospace;  /* monospace font */
+      overflow-x: auto;
+      font-family: monospace;
       font-size: 14px;
     }
   </style>
@@ -126,6 +135,7 @@
     <div class="input-area">
       <input type="text" id="user-input" placeholder="Type your message..." />
       <button id="send-btn">Send</button>
+      <button id="mic-btn" class="mic-btn">🎤</button>
     </div>
   </div>
 
@@ -133,26 +143,47 @@
     const chatBox = document.getElementById("chat-box");
     const input = document.getElementById("user-input");
     const sendBtn = document.getElementById("send-btn");
+    const micBtn = document.getElementById("mic-btn");
 
     let history = [
-      {
-        role: "user",
-        parts: [{ text: "Hello" }],
-      },
-      {
-        role: "model",
-        parts: [{ text: "Great to meet you. What would you like to know?" }],
-      },
+      { role: "user", parts: [{ text: "Hello" }] },
+      { role: "model", parts: [{ text: "Great to meet you. What would you like to know?" }] }
     ];
 
     function appendMessage(sender, message) {
       const div = document.createElement("div");
       div.className = sender;
       let htmlOutput = marked.parse(message);
-      div.innerHTML = `${htmlOutput}`;
+      div.innerHTML = htmlOutput;
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
+
+    function speakText(text) {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1;   // normal speed
+      utterance.pitch = 1;  // normal pitch
+      utterance.volume = 1; // ensure full volume
+      const voices = speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        const preferred = voices.find(v => v.lang === "hi-IN") || voices.find(v => v.lang === "en-US");
+        if (preferred) {
+          utterance.voice = preferred;
+          utterance.lang = preferred.lang;
+        }
+      } else {
+        utterance.lang = "en-US";
+      }
+
+      window.speechSynthesis.speak(utterance);
+    }
+    speechSynthesis.onvoiceschanged = () => {
+      console.log("Voices loaded:", speechSynthesis.getVoices());
+    };
+
 
     async function sendMessage() {
       const query = input.value.trim();
@@ -166,13 +197,14 @@
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, history }),
+          body: JSON.stringify({ query, history })
         });
 
         const data = await res.json();
         if (data.status === 1) {
           appendMessage("bot", data.reply);
           history.push({ role: "model", parts: [{ text: data.reply }] });
+          speakText(data.reply);
         } else {
           appendMessage("bot", "Error: " + data.reply);
         }
@@ -186,6 +218,30 @@
     input.addEventListener("keypress", (e) => {
       if (e.key === "Enter") sendMessage();
     });
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.lang = 'hi-IN';
+      recognition.interimResults = false;
+
+      recognition.onstart = () => micBtn.classList.add("active");
+      recognition.onend = () => micBtn.classList.remove("active");
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        input.value = transcript;
+        sendMessage();
+      };
+
+      micBtn.addEventListener("click", () => {
+        recognition.start();
+      });
+    } else {
+      micBtn.disabled = true;
+      micBtn.title = "Speech Recognition not supported";
+    }
   </script>
 </body>
 

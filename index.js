@@ -23,9 +23,9 @@ app.post("/api/chat", async (req, res) => {
         console.log(history , query)
         const chat = ai.chats.create({
             model: "gemini-2.5-flash",
-            // config: {
-            //     systemInstruction: process.env.systemInstruction ,
-            // },
+            config: {
+                systemInstruction: process.env.systemInstruction ,
+            },
             history: history,
         });
 
