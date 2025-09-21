@@ -16,9 +16,8 @@ const ai = new GoogleGenAI({
 
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "public")));
 
-// increase payload size limit
 app.use(bodyParser.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
